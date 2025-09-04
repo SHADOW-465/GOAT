@@ -1,0 +1,244 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String        @id @default(cuid())
+  email           String        @unique
+  name            String?
+  role            Role          @default(EMPLOYEE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  tasks           Task[]
+  shootAssignments ShootAssignment[]
+  leadsAssigned   Lead[]
+  notifications   Notification[]
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus @default(PENDING)
+  priority    Priority @default(MEDIUM)
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  assignee    User?    @relation(fields: [assigneeId], references: [id])
+  assigneeId  String?
+  project     Project? @relation(fields: [projectId], references: [id])
+  projectId   String?
+  timeLogs    TimeLog[]
+}
+
+model TimeLog {
+  id        String   @id @default(cuid())
+  startTime DateTime
+  endTime   DateTime?
+  task      Task     @relation(fields: [taskId], references: [id])
+  taskId    String
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  tasks       Task[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  shoots    Shoot[]
+  invoices  Invoice[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Shoot {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  location    String?
+  status      ShootStatus @default(PENDING)
+  client      Client?  @relation(fields: [clientId], references: [id])
+  clientId    String?
+  assignments ShootAssignment[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ShootAssignment {
+  id        String   @id @default(cuid())
+  shoot     Shoot    @relation(fields: [shootId], references: [id])
+  shootId   String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  role      String // e.g., "Director", "Camera Operator"
+  createdAt DateTime @default(now())
+  @@unique([shootId, userId])
+}
+
+model Script {
+  id        String          @id @default(cuid())
+  title     String
+  versions  ScriptVersion[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model ScriptVersion {
+  id        String   @id @default(cuid())
+  content   String
+  version   Int
+  script    Script   @relation(fields: [scriptId], references: [id])
+  scriptId  String
+  createdAt DateTime @default(now())
+}
+
+model EditingTask {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      EditingStatus @default(DRAFT_READY)
+  feedback    Comment[]
+  files       String[] // URLs to files
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Comment {
+  id           String      @id @default(cuid())
+  content      String
+  timestamp    Float // in seconds
+  editingTask  EditingTask @relation(fields: [editingTaskId], references: [id])
+  editingTaskId String
+  createdAt    DateTime    @default(now())
+}
+
+model Lead {
+  id        String     @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  status    LeadStatus @default(NEW)
+  assignee  User?      @relation(fields: [assigneeId], references: [id])
+  assigneeId String?
+  rejectionReason String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Invoice {
+  id        String        @id @default(cuid())
+  amount    Float
+  status    InvoiceStatus @default(UNPAID)
+  dueDate   DateTime
+  client    Client        @relation(fields: [clientId], references: [id])
+  clientId  String
+  revenue   Revenue?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model Revenue {
+  id        String   @id @default(cuid())
+  amount    Float
+  date      DateTime
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id])
+  invoiceId String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Expense {
+  id          String @id @default(cuid())
+  description String
+  amount      Float
+  date        DateTime
+  createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id        String             @id @default(cuid())
+  message   String
+  read      Boolean            @default(false)
+  category  NotificationCategory @default(SYSTEM)
+  user      User               @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime           @default(now())
+}
+
+model Faq {
+  id        String @id @default(cuid())
+  question  String
+  answer    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  EMPLOYEE
+  EXECUTIVE
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ShootStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum EditingStatus {
+  EDITING
+  DRAFT_READY
+  IN_REVIEW
+  APPROVED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  REJECTED
+  CONVERTED
+}
+
+enum InvoiceStatus {
+  PAID
+  UNPAID
+  OVERDUE
+}
+
+enum NotificationCategory {
+  URGENT
+  APPROVAL
+  SYSTEM
+}
